@@ -14,7 +14,7 @@ python manage.py seed_demo        # opsional: data contoh 4 kriteria + 10 ruas
 python manage.py runserver
 ```
 
-Buka http://127.0.0.1:8000/ . Tes: `python manage.py test`.
+Tes: `python manage.py test`.
 
 ## Struktur (Data - Model - Dialog)
 
