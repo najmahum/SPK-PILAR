@@ -1,0 +1,47 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Ruas Jalan</h1>
+  <div class="btn-group">
+    <a class="btn btn-primary" href="{% url 'ruas_tambah' %}">+ Tambah ruas</a>
+    <a class="btn btn-outline-secondary" href="{% url 'data_impor' %}">Impor</a>
+    <a class="btn btn-outline-secondary" href="{% url 'data_ekspor' 'csv' %}">Ekspor CSV</a>
+    <a class="btn btn-outline-secondary" href="{% url 'data_ekspor' 'xlsx' %}">Ekspor Excel</a>
+    <a class="btn btn-outline-secondary" href="{% url 'ruas_bandingkan' %}">Bandingkan</a>
+  </div>
+</div>
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr>
+    <th>Kode</th><th>Nama ruas</th>
+    <th class="num" title="Tingkat kerusakan">C1<br><small class="fw-normal">% rusak → skor</small></th>
+    <th class="num" title="Konektivitas">C2<br><small class="fw-normal">skor</small></th>
+    <th class="num" title="Dampak sosial-ekonomi">C3<br><small class="fw-normal">LHRT / aduan → skor</small></th>
+    <th class="num" title="Urgensi keselamatan">C4<br><small class="fw-normal">skor</small></th>
+    <th class="num">Biaya<br><small class="fw-normal">juta Rp</small></th>
+    <th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for r in daftar %}
+    <tr>
+      <td><strong>{{ r.kode }}</strong></td><td>{{ r.nama }}</td>
+      <td class="num">{{ r.persen_kerusakan|floatformat:"-1" }}% → <strong>{{ r.skor_c1 }}</strong>
+        <div class="small text-muted">{{ r.kategori_kerusakan.0 }}</div></td>
+      <td class="num"><strong>{{ r.skor_c2 }}</strong></td>
+      <td class="num">{{ r.lhrt|floatformat:"0" }} / {{ r.aduan_per_bulan }} → <strong>{{ r.skor_c3 }}</strong></td>
+      <td class="num"><strong>{{ r.skor_c4 }}</strong></td>
+      <td class="num">{{ r.biaya|floatformat:"-2" }}</td>
+      <td>
+        {% if r.darurat %}<span class="badge badge-aksen">Darurat</span>{% endif %}
+        {% if r.ditunda %}<span class="badge badge-slate">Ditahan</span>{% endif %}
+      </td>
+      <td class="text-end text-nowrap">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'ruas_ubah' r.pk %}">Ubah</a>
+        <a class="btn btn-sm btn-outline-danger" href="{% url 'ruas_hapus' r.pk %}">Hapus</a>
+      </td></tr>
+  {% empty %}
+    <tr><td colspan="9" class="text-center text-muted py-4">Belum ada ruas jalan.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+<p class="text-muted small mt-2">Skor C1 dan C3 dihitung otomatis dari data survei sesuai rubrik. Ubah data lalu hitung ulang di menu Peringkat TOPSIS untuk what-if analysis.</p>
+{% endblock %}

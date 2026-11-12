@@ -1,0 +1,28 @@
+<div class="row g-3">
+  <div class="col-lg-6">
+    <h3 class="h6">Matriks perbandingan berpasangan</h3>
+    <div class="table-responsive"><table class="table table-sm table-bordered tabel-langkah">
+      <thead class="table-light"><tr><th></th>{% for k in ahp.kode %}<th class="num">{{ k }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for b in ahp.baris %}<tr><th>{{ b.kode }}</th>{% for v in b.nilai %}<td class="num">{{ v|floatformat:4 }}</td>{% endfor %}</tr>{% endfor %}
+        <tr class="table-light"><th>Σ</th>{% for v in ahp.jumlah_kolom %}<td class="num">{{ v|floatformat:4 }}</td>{% endfor %}</tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="col-lg-6">
+    <h3 class="h6">Matriks ternormalisasi dan bobot (rata-rata baris)</h3>
+    <div class="table-responsive"><table class="table table-sm table-bordered tabel-langkah">
+      <thead class="table-light"><tr><th></th>{% for k in ahp.kode %}<th class="num">{{ k }}</th>{% endfor %}<th class="num">Bobot</th></tr></thead>
+      <tbody>
+        {% for b in ahp.baris %}<tr><th>{{ b.kode }}</th>{% for v in b.norm %}<td class="num">{{ v|floatformat:4 }}</td>{% endfor %}<td class="num fw-bold">{{ b.bobot|floatformat:4 }}</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+</div>
+<div class="d-flex flex-wrap gap-4 small mt-1">
+  <span>λ<sub>maks</sub> = <strong>{{ ahp.lambda_max|floatformat:4 }}</strong></span>
+  <span>CI = (λ<sub>maks</sub> − n)/(n − 1) = <strong>{{ ahp.ci|floatformat:4 }}</strong></span>
+  <span>RI (n={{ ahp.n }}) = <strong>{{ ahp.ri|floatformat:2 }}</strong></span>
+  <span>CR = CI/RI = <strong>{{ ahp.cr|floatformat:4 }}</strong>
+    {% if ahp.konsisten %}<span class="badge text-bg-success">Konsisten</span>{% else %}<span class="badge text-bg-danger">Tidak konsisten</span>{% endif %}</span>
+</div>

@@ -1,0 +1,12 @@
+<script>
+  (function () {
+    const g = JSON.parse(document.getElementById('data-vi').textContent);
+    const peta = {darurat: '#FF5722', normal: '#1E293B', tidak: '#CBD5E1'};
+    const warna = (g.kelas || []).map(k => peta[k] || '#1E293B');
+    new Chart(document.getElementById('grafik-vi'), {
+      type: 'bar',
+      data: {labels: g.label, datasets: [{label: 'Vi', data: g.vi, backgroundColor: warna, borderRadius: 4}]},
+      options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true, max: 1}}}
+    });
+  })();
+</script>

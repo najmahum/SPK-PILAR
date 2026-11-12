@@ -1,0 +1,32 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">{% if obj %}Ubah ruas jalan{% else %}Tambah ruas jalan{% endif %}</h1>
+<div class="card"><div class="card-body">
+<form method="post">{% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="row">
+  {% for f in form %}
+    {% if f.name == 'jenis_permukaan' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C1 – Tingkat kerusakan</h2><div class="row">{% endif %}
+    {% if f.name == 'skor_konektivitas' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C2 – Konektivitas & fungsi jalan</h2><div class="row">{% endif %}
+    {% if f.name == 'lhrt' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C3 – Dampak sosial-ekonomi & aduan publik <span class="text-muted fw-normal">(skor diambil dari yang tertinggi)</span></h2><div class="row">{% endif %}
+    {% if f.name == 'skor_keselamatan' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C4 – Urgensi keselamatan</h2><div class="row">{% endif %}
+    {% if f.name == 'biaya' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">Anggaran dan pertimbangan khusus</h2><div class="row">{% endif %}
+    {% if f.name == 'keterangan' %}</div><div class="row mt-3">{% endif %}
+
+    <div class="{% if f.name == 'keterangan' or f.name == 'skor_konektivitas' or f.name == 'skor_keselamatan' %}col-12{% elif f.name == 'nama' %}col-md-9{% elif f.name == 'kode' %}col-md-3{% else %}col-md-6{% endif %} mb-3">
+      {% if f.field.widget.input_type == 'checkbox' %}
+        <div class="form-check mt-md-4">{{ f }}<label class="form-check-label" for="{{ f.id_for_label }}">{{ f.label }}</label></div>
+      {% else %}
+        <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+      {% endif %}
+      {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}
+      {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+  {% endfor %}
+  </div>
+  <p class="text-muted small">Desimal ditulis dengan titik (mis. 12.5). Skor C1 dan C3 dihitung otomatis saat disimpan.</p>
+  <button class="btn btn-primary">Simpan</button>
+  <a class="btn btn-link" href="{% url 'ruas_list' %}">Batal</a>
+</form>
+</div></div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Riwayat skenario</h1>
+<form method="get" action="{% url 'skenario_bandingkan' %}">
+<div class="card"><div class="table-responsive">
+<table class="table table-hover mb-0 align-middle">
+  <thead><tr><th></th><th>Nama</th><th>Waktu</th><th class="num">Anggaran</th><th class="num">CR</th><th>Prioritas #1</th><th></th></tr></thead>
+  <tbody>
+  {% for s in daftar %}
+    <tr>
+      <td><input class="form-check-input" type="checkbox" name="id" value="{{ s.pk }}"></td>
+      <td><a href="{% url 'skenario_detail' s.pk %}">{{ s.nama }}</a>{% if s.catatan %}<div class="small text-muted">{{ s.catatan }}</div>{% endif %}</td>
+      <td>{{ s.dibuat|date:"d M Y H:i" }}</td>
+      <td class="num">{% if s.anggaran is not None %}{{ s.anggaran|floatformat:"-2" }}{% else %}–{% endif %}</td>
+      <td class="num">{{ s.cr|floatformat:4 }}</td>
+      <td>{{ s.hasil.alternatif.0.kode }} – {{ s.hasil.alternatif.0.nama }}</td>
+      <td class="text-end"><a class="btn btn-sm btn-outline-danger" href="{% url 'skenario_hapus' s.pk %}">Hapus</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7" class="text-center text-muted py-4">Belum ada skenario. Hitung di menu <a href="{% url 'topsis' %}">Peringkat TOPSIS</a> lalu simpan.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% if daftar %}<button class="btn btn-primary mt-3">Bandingkan yang dicentang</button>{% endif %}
+</form>
+{% endblock %}

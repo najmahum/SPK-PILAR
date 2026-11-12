@@ -1,0 +1,50 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<h1 class="h3 mb-1">Perbandingan berpasangan AHP</h1>
+<p class="text-muted">Bandingkan tingkat kepentingan setiap pasang kriteria (skala Saaty 1–9). Bobot hanya dipakai di TOPSIS jika CR ≤ {{ batas_cr }}.</p>
+
+{% if kriteria|length < 2 %}
+  <div class="alert alert-aksen">Minimal dua kriteria diperlukan. Jalankan <code>python manage.py seed_demo</code> atau isi kriteria lewat admin.</div>
+{% else %}
+<div class="card mb-4"><div class="card-body">
+  <form method="post">{% csrf_token %}
+    <table class="table align-middle">
+      <thead><tr><th style="width:25%">Kriteria A</th><th>Penilaian</th><th style="width:25%">Kriteria B</th></tr></thead>
+      <tbody>
+      {% for p in pasangan %}
+        <tr>
+          <td><strong>{{ p.a.kode }}</strong> {{ p.a.nama }}</td>
+          <td><select class="form-select form-select-sm" name="p_{{ p.a.id }}_{{ p.b.id }}">
+            {% for o in p.opsi %}<option value="{{ o.val }}" {% if o.dipilih %}selected{% endif %}>{{ o.label }}</option>{% endfor %}
+          </select></td>
+          <td><strong>{{ p.b.kode }}</strong> {{ p.b.nama }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <button class="btn btn-primary">Simpan &amp; hitung bobot</button>
+  </form>
+</div></div>
+{% endif %}
+
+{% if ahp %}
+<div class="card"><div class="card-body">
+  <h2 class="h5">Hasil perhitungan bobot</h2>
+  {% if ahp.konsisten %}
+    <div class="alert alert-success py-2">Matriks konsisten (CR = {{ ahp.cr|floatformat:4 }} ≤ {{ batas_cr }}).</div>
+  {% else %}
+    <div class="alert alert-aksen py-2">Matriks <strong>tidak konsisten</strong> (CR = {{ ahp.cr|floatformat:4 }} &gt; {{ batas_cr }}). Tinjau kembali penilaian, misalnya jika A &gt; B dan B &gt; C maka A seharusnya jauh &gt; C.</div>
+  {% endif %}
+  {% include "prioritas/_ahp_tabel.html" %}
+  <h3 class="h6 mt-4">Bobot hasil AHP dibanding bobot usulan DPUPR</h3>
+  <table class="table table-sm tabel-langkah w-auto">
+    <thead><tr><th>Kriteria</th><th class="num">Bobot AHP</th><th class="num">Usulan DPUPR</th><th class="num">Selisih</th></tr></thead>
+    <tbody>{% for p in pembanding %}
+      <tr><td>{{ p.kode }}</td><td class="num">{% widthratio p.ahp 1 100 %}%</td>
+          <td class="num">{% if p.usulan is not None %}{% widthratio p.usulan 1 100 %}%{% else %}–{% endif %}</td>
+          <td class="num">{% if p.usulan is not None %}{{ p.selisih|floatformat:1 }} poin{% else %}–{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div></div>
+{% endif %}
+{% endblock %}

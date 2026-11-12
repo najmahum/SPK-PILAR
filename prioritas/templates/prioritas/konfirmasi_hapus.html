@@ -1,0 +1,12 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<div class="card border-danger"><div class="card-body">
+  <h1 class="h4">Hapus "{{ obj }}"?</h1>
+  {% if peringatan %}<p class="text-danger">{{ peringatan }}</p>{% endif %}
+  <p>Tindakan ini tidak dapat dibatalkan.</p>
+  <form method="post">{% csrf_token %}
+    <button class="btn btn-danger">Ya, hapus</button>
+    <a class="btn btn-link" href="{% url kembali %}">Batal</a>
+  </form>
+</div></div>
+{% endblock %}

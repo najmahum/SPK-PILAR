@@ -1,0 +1,22 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Impor data ruas jalan</h1>
+<div class="card"><div class="card-body">
+  <p>Unggah berkas <strong>CSV</strong> atau <strong>Excel (.xlsx)</strong>. Baris pertama adalah header:</p>
+  <pre class="bg-light p-2 border rounded small">{% for k in kolom %}{{ k }}{% if not forloop.last %},{% endif %}{% endfor %}</pre>
+  <ul class="small text-muted">
+    <li>Kolom wajib: {% for k in wajib %}<code>{{ k }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}. Kolom lain opsional.</li>
+    <li><code>jenis_permukaan</code>: <code>berpenutup</code> (default) atau <code>tanpa_penutup</code>.</li>
+    <li><code>persen_kerusakan</code> 0–100; <code>skor_konektivitas</code> dan <code>skor_keselamatan</code> bilangan bulat 1–5; <code>biaya</code> dalam juta Rp.</li>
+    <li><code>lumpuh_jika_rusak</code>, <code>darurat</code>, <code>ditunda</code> (artinya ditahan karena dependensi proyek): isi <code>ya</code> / <code>tidak</code>.</li>
+    <li>Skor C1 dan C3 dihitung otomatis. Ruas dengan <em>kode</em> yang sudah ada diperbarui.</li>
+    <li>Pemisah CSV otomatis dikenali (koma / titik koma / tab); desimal boleh titik atau koma.</li>
+  </ul>
+  <a class="btn btn-sm btn-outline-secondary mb-3" href="{% url 'data_ekspor' 'csv' %}?templat=1">Unduh templat CSV</a>
+  <form method="post" enctype="multipart/form-data">{% csrf_token %}
+    <div class="mb-3"><input class="form-control" type="file" name="berkas" accept=".csv,.xlsx" required></div>
+    <button class="btn btn-primary">Impor</button>
+    <a class="btn btn-link" href="{% url 'ruas_list' %}">Batal</a>
+  </form>
+</div></div>
+{% endblock %}

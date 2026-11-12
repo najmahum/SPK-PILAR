@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}DSS Prioritas Penanganan Jalan{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Palet: Soft Slate (latar ~60%), Dark Slate Blue (struktur ~30%), Digital Orange (aksen ~10%) */
+    :root {
+      --soft: #F4F6F9;
+      --slate: #1E293B;
+      --slate-2: #334155;
+      --slate-muted: #64748B;
+      --slate-line: #E3E8EF;
+      --slate-tint: #E9EEF5;
+      --orange: #FF5722;
+      --orange-soft: #FFF1EC;
+      --bs-body-bg: var(--soft);
+      --bs-body-color: var(--slate);
+      --bs-body-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --bs-link-color-rgb: 30, 41, 59;
+      --bs-link-hover-color-rgb: 255, 87, 34;
+      --bs-border-color: var(--slate-line);
+    }
+    body { background: var(--soft); color: var(--slate); font-size: .95rem; }
+    h1, h2, h3, h4, h5, h6 { color: var(--slate); font-weight: 700; letter-spacing: -.01em; }
+    .text-muted, .form-text { color: var(--slate-muted) !important; }
+    a { color: var(--slate); text-decoration-color: #cbd5e1; text-underline-offset: 3px; }
+    a:hover { color: var(--orange); }
+
+    /* Judul halaman: marka jalan putus-putus sebagai penanda */
+    main > h1:first-of-type::after, main > div > h1:first-child::after {
+      content: ""; display: block; width: 72px; height: 4px; margin-top: .55rem; border-radius: 2px;
+      background: repeating-linear-gradient(90deg, var(--orange) 0 14px, transparent 14px 20px);
+    }
+
+    /* Navbar */
+    .navbar { background: var(--slate) !important; padding: .7rem 0; }
+    .navbar-brand { font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: .6rem; }
+    .navbar-brand small { opacity: .6; font-weight: 500; }
+    .brand-marka { display: inline-block; width: 6px; height: 22px; border-radius: 2px;
+      background: repeating-linear-gradient(180deg, var(--orange) 0 6px, transparent 6px 10px); }
+    .navbar .nav-link { color: #aab6c8; font-weight: 500; padding: .45rem .8rem; border-radius: 8px; }
+    .navbar .nav-link:hover { color: #fff; background: rgba(255,255,255,.07); }
+    .navbar .nav-link.active { color: #fff; background: rgba(255,255,255,.12); }
+
+    /* Kartu dan tabel: terang, tidak kaku */
+    .card { border: 1px solid var(--slate-line); border-radius: 14px; box-shadow: none; background: #fff; }
+    .table { --bs-table-bg: transparent; --bs-table-hover-bg: #F1F5F9; --bs-table-border-color: var(--slate-line); }
+    .table > thead > tr > th {
+      background-color: var(--slate-tint); color: var(--slate-2); border-bottom: 0;
+      font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+      box-shadow: none; padding-top: .7rem; padding-bottom: .7rem;
+    }
+    .table > thead > tr > th:first-child { border-top-left-radius: 10px; }
+    .table > thead > tr > th:last-child { border-top-right-radius: 10px; }
+    .table > thead small { text-transform: none; letter-spacing: 0; color: var(--slate-muted) !important; font-weight: 500; }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tabel-langkah { font-size: .85rem; }
+    .table-light { --bs-table-bg: var(--slate-tint); }
+    .vi-bar { height: 8px; border-radius: 4px; background: var(--slate); }
+
+    /* Status baris hasil peringkat */
+    .row-tunda > td { color: var(--slate-muted); }
+    .row-tunda .vi-bar { background: #CBD5E1; }
+    .row-tahan > td { color: var(--slate-muted); background-image: repeating-linear-gradient(135deg, transparent 0 8px, rgba(100,116,139,.07) 8px 16px); }
+    .row-tahan .vi-bar { background: #CBD5E1; }
+    .row-darurat > td:first-child { box-shadow: inset 4px 0 0 var(--orange); }
+    .row-darurat .vi-bar { background: var(--orange); }
+    .row-berubah > td:first-child { box-shadow: inset 4px 0 0 var(--orange); }
+
+    /* Tombol */
+    .btn { border-radius: 10px; font-weight: 600; }
+    .btn-primary {
+      --bs-btn-bg: var(--slate); --bs-btn-border-color: var(--slate);
+      --bs-btn-hover-bg: #0F172A; --bs-btn-hover-border-color: #0F172A;
+      --bs-btn-active-bg: #0F172A; --bs-btn-active-border-color: #0F172A;
+      --bs-btn-disabled-bg: var(--slate); --bs-btn-disabled-border-color: var(--slate);
+    }
+    .btn-outline-secondary {
+      --bs-btn-color: var(--slate-2); --bs-btn-border-color: #CBD5E1; --bs-btn-bg: #fff;
+      --bs-btn-hover-bg: var(--slate-tint); --bs-btn-hover-color: var(--slate); --bs-btn-hover-border-color: #CBD5E1;
+      --bs-btn-active-bg: var(--slate-tint); --bs-btn-active-color: var(--slate); --bs-btn-active-border-color: #CBD5E1;
+    }
+    .btn-outline-danger { --bs-btn-color: #B42318; --bs-btn-border-color: #F1C7C2; --bs-btn-hover-bg: #FDECEA;
+      --bs-btn-hover-color: #B42318; --bs-btn-hover-border-color: #F1C7C2; --bs-btn-active-bg: #FDECEA;
+      --bs-btn-active-color: #B42318; --bs-btn-active-border-color: #F1C7C2; }
+    .btn-link { color: var(--slate-muted); }
+    .btn-accent {   /* hanya untuk aksi krusial */
+      --bs-btn-color: #fff; --bs-btn-bg: var(--orange); --bs-btn-border-color: var(--orange);
+      --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #E64A19; --bs-btn-hover-border-color: #E64A19;
+      --bs-btn-active-color: #fff; --bs-btn-active-bg: #D84315; --bs-btn-active-border-color: #D84315;
+    }
+    .form-control, .form-select { border-radius: 10px; border-color: #CBD5E1; }
+    .form-control:focus, .form-select:focus, .form-check-input:focus {
+      border-color: var(--orange); box-shadow: 0 0 0 .2rem rgba(255,87,34,.18);
+    }
+    .form-check-input:checked { background-color: var(--slate); border-color: var(--slate); }
+
+    /* Badge */
+    .badge { font-weight: 600; border-radius: 6px; padding: .35em .6em; }
+    .badge.text-bg-primary { background-color: var(--slate) !important; }
+    .badge-aksen { background: var(--orange); color: #fff; }           /* darurat / perlu perhatian */
+    .badge-ok { background: var(--slate-tint); color: var(--slate); }   /* masuk anggaran */
+    .badge-tunda { background: #fff; color: var(--slate-muted); border: 1px dashed #94A3B8; }
+    .badge-slate { background: var(--slate-2); color: #fff; }           /* ditahan */
+    .accordion-item { border-color: var(--slate-line); }
+    .accordion-button:not(.collapsed) { background: var(--slate-tint); color: var(--slate); box-shadow: none; }
+
+    /* Kotak info dan pengumuman */
+    .catatan-box { background: #fff; border: 1px solid var(--slate-line); border-left: 4px solid var(--slate);
+                   border-radius: 10px; padding: .7rem 1rem; }
+    .alert-aksen { background: var(--orange-soft); border: 1px solid #FFD2C2;
+                   border-left: 5px solid var(--orange); color: var(--slate); border-radius: 10px; }
+    .modal-content { border: 0; border-radius: 16px; overflow: hidden; }
+    .modal-aksen .modal-header { background: var(--orange); color: #fff; border: 0; }
+    .modal-aksen .modal-header .modal-title { color: #fff; }
+    .modal-aksen .btn-close { filter: brightness(0) invert(1); }
+  </style>
+</head>
+<body>
+{% with u=request.resolver_match.url_name %}
+<nav class="navbar navbar-expand-lg navbar-dark mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="{% url 'dashboard' %}"><span class="brand-marka"></span>DSS Jalan <small>AHP–TOPSIS</small></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="menu">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link {% if u == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">Beranda</a></li>
+        <li class="nav-item"><a class="nav-link {% if 'kriteria' in u %}active{% endif %}" href="{% url 'kriteria_list' %}">Kriteria</a></li>
+        <li class="nav-item"><a class="nav-link {% if 'ruas' in u or 'data' in u %}active{% endif %}" href="{% url 'ruas_list' %}">Ruas Jalan</a></li>
+        <li class="nav-item"><a class="nav-link {% if u == 'ahp' %}active{% endif %}" href="{% url 'ahp' %}">Perbandingan AHP</a></li>
+        <li class="nav-item"><a class="nav-link {% if u == 'topsis' %}active{% endif %}" href="{% url 'topsis' %}">Peringkat TOPSIS</a></li>
+        <li class="nav-item"><a class="nav-link {% if 'skenario' in u %}active{% endif %}" href="{% url 'skenario_list' %}">Riwayat Skenario</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+{% endwith %}
+
+<main class="container pb-5">
+  {% for m in messages %}
+    {% if m.tags == 'warning' %}
+      <div class="alert alert-aksen alert-dismissible fade show">{{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    {% else %}
+      <div class="alert alert-{% if m.tags == 'error' %}danger{% elif m.tags == 'success' %}success{% else %}secondary{% endif %} alert-dismissible fade show">
+        {{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endif %}
+  {% endfor %}
+  {% block content %}{% endblock %}
+  <hr class="mt-5">
+  <p class="text-muted small">Hasil sistem ini adalah rekomendasi analitis sebagai bahan pertimbangan. Keputusan akhir tetap berada pada pihak DPUPR; bukan pengesahan kontrak proyek.</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  const PAL = ['#1E293B', '#FF5722', '#64748B', '#94A3B8', '#CBD5E1'];
+  Chart.defaults.color = '#1E293B';
+  Chart.defaults.borderColor = '#E3E8EF';
+  Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

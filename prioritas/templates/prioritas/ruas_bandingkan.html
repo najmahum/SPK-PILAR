@@ -1,0 +1,42 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Perbandingan skor kriteria antar ruas</h1>
+<div class="card mb-4"><div class="card-body">
+  <form method="get">
+    <div class="row">
+      {% for r in semua %}
+        <div class="col-md-3 col-sm-6">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="id" value="{{ r.id }}" id="r{{ r.id }}" {% if r.id in dipilih_id %}checked{% endif %}>
+            <label class="form-check-label" for="r{{ r.id }}">{{ r.kode }} – {{ r.nama }}</label>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary mt-3">Bandingkan</button>
+  </form>
+</div></div>
+
+{% if grafik %}
+<div class="card mb-4"><div class="card-body">
+  <h2 class="h5">Skor per kriteria</h2>
+  <canvas id="grafik" height="110"></canvas>
+</div></div>
+<div class="card"><div class="table-responsive">
+<table class="table table-sm mb-0">
+  <thead><tr><th>Ruas</th>{% for k in kriteria %}<th class="num" title="{{ k.nama }}">{{ k.kode }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for b in tabel %}<tr><td>{{ b.ruas.kode }} – {{ b.ruas.nama }}</td>{% for n in b.nilai %}<td class="num">{{ n }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table></div></div>
+{{ grafik|json_script:"data-grafik" }}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if grafik %}
+<script>
+  const g = JSON.parse(document.getElementById('data-grafik').textContent);
+  g.datasets.forEach((d, i) => d.backgroundColor = PAL[i % PAL.length]);
+  new Chart(document.getElementById('grafik'), {type:'bar', data:g,
+    options:{scales:{y:{beginAtZero:true, max:5, ticks:{stepSize:1}}}}});
+</script>
+{% endif %}
+{% endblock %}

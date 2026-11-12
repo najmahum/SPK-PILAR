@@ -1,0 +1,47 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Perbandingan skenario</h1>
+
+<div class="card mb-4"><div class="card-body">
+  <h2 class="h5">Bobot kriteria antarversi</h2>
+  <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Kriteria</th>{% for s in skenario %}<th class="num">{{ s.nama }}<br><small class="text-muted fw-normal">CR {{ s.cr|floatformat:4 }}</small></th>{% endfor %}</tr></thead>
+    <tbody>{% for b in tabel_bobot %}
+      <tr><td>{{ b.kode }} – {{ b.nama }}</td>
+        {% for w in b.bobot %}<td class="num">{% if w is None %}–{% else %}{{ w|floatformat:4 }}{% endif %}</td>{% endfor %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div></div>
+
+<div class="card mb-4"><div class="card-body">
+  <h2 class="h5">Peringkat antarskenario</h2>
+  <p class="small text-muted">Baris berwarna oranye muda = peringkat berubah di antara skenario. Urutan baris mengikuti skenario pertama.</p>
+  <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Ruas</th>
+      {% for s in skenario %}<th class="num">{{ s.nama }}<br><small class="text-muted fw-normal">peringkat (V<sub>i</sub>)</small></th>{% endfor %}</tr></thead>
+    <tbody>{% for r in tabel_peringkat %}
+      <tr class="{% if r.berubah %}row-berubah{% endif %}">
+        <td>{{ r.kode }} – {{ r.nama }}</td>
+        {% for d in r.data %}<td class="num">
+          {% if d %}<strong>#{{ d.peringkat }}</strong> ({{ d.vi|floatformat:4 }}){% if d.terpilih %} <span class="badge badge-ok">✓</span>{% endif %}{% else %}–{% endif %}
+        </td>{% endfor %}
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div></div>
+
+<div class="card"><div class="card-body">
+  <h2 class="h5">Grafik skor preferensi (V<sub>i</sub>)</h2>
+  <canvas id="grafik" height="110"></canvas>
+</div></div>
+{{ grafik|json_script:"data-grafik" }}
+<a class="btn btn-link mt-3" href="{% url 'skenario_list' %}">&larr; Kembali ke riwayat</a>
+{% endblock %}
+{% block scripts %}
+<script>
+  const g = JSON.parse(document.getElementById('data-grafik').textContent);
+  g.datasets.forEach((d, i) => d.backgroundColor = PAL[i % PAL.length]);
+  new Chart(document.getElementById('grafik'), {type:'bar', data:g,
+    options:{scales:{y:{beginAtZero:true, max:1}}}});
+</script>
+{% endblock %}

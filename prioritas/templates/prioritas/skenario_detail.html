@@ -1,0 +1,15 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-0">{{ s.nama }}</h1>
+    <div class="text-muted small">Disimpan {{ s.dibuat|date:"d M Y H:i" }}{% if s.catatan %} · {{ s.catatan }}{% endif %}</div>
+  </div>
+  <div class="btn-group">
+    <a class="btn btn-outline-secondary" href="{% url 'skenario_ekspor' s.pk %}">Ekspor CSV</a>
+    <a class="btn btn-outline-secondary" href="{% url 'skenario_list' %}">Kembali</a>
+  </div>
+</div>
+{% include "prioritas/_hasil.html" %}
+{% endblock %}
+{% block scripts %}{% include "prioritas/_hasil_script.html" %}{% endblock %}

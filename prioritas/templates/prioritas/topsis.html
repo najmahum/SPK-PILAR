@@ -1,0 +1,61 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Peringkat prioritas (TOPSIS)</h1>
+
+<div class="card mb-4"><div class="card-body">
+  <form method="post" class="row g-3 align-items-start">{% csrf_token %}
+    <div class="col-md-2">
+      <label class="form-label">Tahun anggaran</label>
+      <input class="form-control" name="tahun" value="{{ tahun }}" placeholder="mis. 2027" inputmode="numeric">
+    </div>
+    <div class="col-md-5">
+      <label class="form-label">Anggaran penanganan jalan setahun (juta Rp)</label>
+      <input class="form-control" name="anggaran" value="{{ anggaran_str }}" placeholder="mis. 3500" inputmode="decimal">
+      <div class="form-text">Total anggaran satu tahun untuk semua ruas di daftar. Kosongkan jika hanya ingin peringkat.</div>
+    </div>
+    <div class="col-md-3"><label class="form-label d-none d-md-block">&nbsp;</label><button class="btn btn-accent w-100">Hitung peringkat</button></div>
+  </form>
+</div></div>
+
+{% if galat %}<div class="alert alert-aksen"><strong>Perhitungan belum bisa dijalankan.</strong> {{ galat }}</div>{% endif %}
+
+{% if hasil %}
+  {% include "prioritas/_hasil.html" %}
+
+  <div class="card"><div class="card-body">
+    <h2 class="h5">Simpan sebagai skenario</h2>
+    <form method="post" action="{% url 'skenario_simpan' %}" class="row g-3">{% csrf_token %}
+      <input type="hidden" name="anggaran" value="{{ anggaran_str }}">
+      <input type="hidden" name="tahun" value="{{ tahun }}">
+      <div class="col-md-4"><input class="form-control" name="nama" placeholder="Nama skenario, mis. Bobot awal 2027" required></div>
+      <div class="col-md-6"><input class="form-control" name="catatan" placeholder="Catatan (opsional)"></div>
+      <div class="col-md-2"><button class="btn btn-accent w-100">Simpan</button></div>
+    </form>
+    <div class="form-text mt-2">Snapshot data, bobot AHP, dan hasil disimpan agar bisa dibandingkan dengan skenario lain.</div>
+  </div></div>
+
+  {% if darurat or ditunda %}
+  <div class="modal fade modal-aksen" id="popup-darurat" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+      <div class="modal-header"><h2 class="modal-title h5">Ada ruas dengan status khusus</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        {% if darurat %}
+          <p class="mb-1"><strong>Darurat / agenda khusus</strong> (didanai lebih dulu):</p>
+          <ul>{% for a in darurat %}<li>{{ a.kode }} – {{ a.nama }} (peringkat {{ a.peringkat }}, biaya {{ a.biaya|floatformat:"-2" }})</li>{% endfor %}</ul>
+          <p class="small text-muted">Jika ruas ini belum dianggarkan dalam Renstra, diperlukan justifikasi ulang dan berisiko menunda paket ruas lain.</p>
+        {% endif %}
+        {% if ditunda %}
+          <p class="mb-1"><strong>Ditahan</strong> (dependensi proyek lain, tidak masuk anggaran tahun ini):</p>
+          <ul class="mb-0">{% for a in ditunda %}<li>{{ a.kode }} – {{ a.nama }} (peringkat {{ a.peringkat }})</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-accent" data-bs-dismiss="modal">Mengerti</button></div>
+    </div></div>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if hasil %}{% include "prioritas/_hasil_script.html" %}
+{% if darurat or ditunda %}<script>new bootstrap.Modal(document.getElementById('popup-darurat')).show();</script>{% endif %}
+{% endif %}{% endblock %}

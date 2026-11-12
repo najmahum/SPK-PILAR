@@ -1,0 +1,28 @@
+{% extends "prioritas/base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">{{ judul }}</h1>
+<div class="card"><div class="card-body">
+<form method="post">{% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for f in form %}
+    <div class="mb-3">
+      <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>
+      {% if f.field.widget.input_type == 'checkbox' %}
+        <div class="form-check">{{ f }}<span class="form-text d-block">{{ f.help_text }}</span></div>
+      {% else %}
+        {{ f }}
+        {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}
+      {% endif %}
+      {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+  {% endfor %}
+  <button class="btn btn-primary">Simpan</button>
+  <a class="btn btn-link" href="{% url kembali %}">Batal</a>
+</form>
+</div></div>
+<script>
+  document.querySelectorAll('input[type=text],input[type=number],select,textarea').forEach(function(e){e.classList.add('form-control')});
+  document.querySelectorAll('input[type=checkbox]').forEach(function(e){e.classList.add('form-check-input')});
+  document.querySelectorAll('select').forEach(function(e){e.classList.replace('form-control','form-select')});
+</script>
+{% endblock %}
