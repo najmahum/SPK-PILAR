@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PILAR - Prioritas Perbaikan Jalan Berdasarkan Kriteria</title>
+  <noscript><meta http-equiv="refresh" content="2;url={% url 'dashboard' %}"></noscript>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --aspal: #1B1E22; --aspal-2: #2B3036; --kuning: #F5B700; --putih: #F4F2EC; --abu: #8E959E; --durasi: 2.4s; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--aspal); color: var(--putih); font-family: 'Barlow', system-ui, sans-serif;
+      display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    body::before { content: ""; position: fixed; inset: 0; pointer-events: none;
+      background: radial-gradient(600px 300px at 50% 42%, rgba(245,183,0,.10), transparent 70%); }
+
+    .panggung { position: relative; width: min(560px, 88vw); text-align: center; transition: opacity .45s ease, transform .45s ease; }
+    .panggung.keluar { opacity: 0; transform: translateY(-10px) scale(.98); }
+
+    /* Logo: rambu belah ketupat */
+    .ikon { width: 64px; height: 64px; margin: 0 auto 1.4rem; background: var(--kuning); border-radius: 12px;
+      transform: rotate(45deg) scale(0); display: flex; align-items: center; justify-content: center;
+      animation: ikon-masuk .55s cubic-bezier(.3,1.5,.5,1) .1s forwards; }
+    .ikon b { transform: rotate(-45deg); font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1.9rem; color: var(--aspal); }
+    @keyframes ikon-masuk { to { transform: rotate(45deg) scale(1); } }
+
+    .nama { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: clamp(2.4rem, 7vw, 3.4rem);
+      letter-spacing: .06em; text-transform: uppercase; line-height: 1; opacity: 0; transform: translateY(8px);
+      animation: naik .5s ease .35s forwards; }
+    .nama span { color: var(--kuning); }
+    .tagline { color: var(--abu); margin-top: .55rem; font-size: .95rem; letter-spacing: .04em; opacity: 0;
+      animation: naik .5s ease .5s forwards; }
+    @keyframes naik { to { opacity: 1; transform: none; } }
+
+    /* Jalan datar sebagai garis progres */
+    .jalan { position: relative; height: 44px; margin: 2.4rem 0 0; border-radius: 6px; overflow: hidden; opacity: 0;
+      background: var(--aspal-2); box-shadow: inset 0 3px 0 #E9E6DE, inset 0 -3px 0 #E9E6DE; animation: naik .4s ease .6s forwards; }
+    .jalan::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px;
+      background: repeating-linear-gradient(90deg, var(--kuning) 0 26px, transparent 26px 44px);
+      animation: marka .6s linear infinite; }
+    @keyframes marka { to { background-position-x: -44px; } }
+    .jejak { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(245,183,0,.14);
+      animation: jejak var(--durasi) cubic-bezier(.55,.1,.35,1) .7s forwards; }
+    @keyframes jejak { to { width: 100%; } }
+    .penanda { position: absolute; top: 50%; left: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px; background: var(--kuning);
+      border-radius: 4px; transform: rotate(45deg); box-shadow: 0 0 0 3px var(--aspal-2), 0 0 18px rgba(245,183,0,.6);
+      animation: maju var(--durasi) cubic-bezier(.55,.1,.35,1) .7s forwards; }
+    @keyframes maju { to { left: 100%; } }
+    .status { margin-top: .9rem; font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--abu); min-height: 1.2em;
+      opacity: 0; animation: naik .4s ease .7s forwards; }
+
+    .lewati { position: fixed; right: 1.4rem; bottom: 1.2rem; color: var(--abu); font-size: .85rem; text-decoration: none;
+      padding: .45rem .8rem; border: 1px solid #3A3F47; border-radius: 6px; }
+    .lewati:hover, .lewati:focus-visible { color: var(--putih); border-color: var(--putih); outline: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before { animation-duration: .01s !important; animation-delay: 0s !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="panggung" id="panggung" role="status" aria-live="polite">
+    <div class="ikon" aria-hidden="true"><b>P</b></div>
+    <div class="nama">PILAR</div>
+    <div class="tagline">Prioritas Perbaikan Jalan Berdasarkan Kriteria</div>
+    <div class="jalan" aria-hidden="true"><div class="jejak"></div><div class="penanda"></div></div>
+    <div class="status" id="status">Data survei ruas</div>
+  </div>
+  <a class="lewati" href="{% url 'dashboard' %}" id="lewati">Lewati →</a>
+
+  <script>
+    (function () {
+      const tujuan = document.getElementById('lewati').href;
+      const kurangGerak = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const status = document.getElementById('status');
+      const pesan = ['Data survei ruas', 'Bobot kriteria AHP', 'Peringkat TOPSIS'];
+      let i = 0;
+      const ganti = setInterval(() => { i = Math.min(i + 1, pesan.length - 1); status.textContent = pesan[i]; }, 850);
+
+      let selesai = false;
+      function masuk() {
+        if (selesai) return;
+        selesai = true;
+        clearInterval(ganti);
+        document.getElementById('panggung').classList.add('keluar');
+        // replace: tombol Kembali tidak memutar animasi lagi
+        setTimeout(() => location.replace(tujuan), kurangGerak ? 0 : 420);
+      }
+      setTimeout(masuk, kurangGerak ? 300 : 3200);
+      document.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ') masuk(); });
+      document.getElementById('lewati').addEventListener('click', e => { e.preventDefault(); masuk(); });
+    })();
+  </script>
+</body>
+</html>

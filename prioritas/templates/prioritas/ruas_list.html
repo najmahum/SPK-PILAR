@@ -1,47 +1,126 @@
 {% extends "prioritas/base.html" %}
+{% load l10n %}
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
   <h1 class="h3 mb-0">Ruas Jalan</h1>
-  <div class="btn-group">
-    <a class="btn btn-primary" href="{% url 'ruas_tambah' %}">+ Tambah ruas</a>
-    <a class="btn btn-outline-secondary" href="{% url 'data_impor' %}">Impor</a>
-    <a class="btn btn-outline-secondary" href="{% url 'data_ekspor' 'csv' %}">Ekspor CSV</a>
-    <a class="btn btn-outline-secondary" href="{% url 'data_ekspor' 'xlsx' %}">Ekspor Excel</a>
+  <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'ruas_bandingkan' %}">Bandingkan</a>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Data</button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="{% url 'data_impor' %}">Impor CSV / Excel</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'data_ekspor' 'csv' %}">Ekspor CSV</a></li>
+        <li><a class="dropdown-item" href="{% url 'data_ekspor' 'xlsx' %}">Ekspor Excel</a></li>
+      </ul>
+    </div>
+    <a class="btn btn-primary" href="{% url 'ruas_tambah' %}">+ Tambah ruas</a>
   </div>
 </div>
+
+{% if daftar %}
+<div class="row g-2 mb-3">
+  <div class="col-md-5"><input type="search" class="form-control" id="cari-ruas" placeholder="Cari kode atau nama ruas…" aria-label="Cari ruas"></div>
+  <div class="col-md-3">
+    <select class="form-select" id="filter-status" aria-label="Filter status">
+      <option value="">Semua status</option>
+      <option value="darurat">Darurat</option>
+      <option value="ditahan">Ditahan</option>
+      <option value="normal">Normal</option>
+    </select>
+  </div>
+  <div class="col-md-4 d-flex align-items-center small text-muted" id="info-jumlah"></div>
+</div>
+{% endif %}
+
 <div class="card"><div class="table-responsive">
-<table class="table table-hover mb-0 align-middle">
+<table class="table table-hover mb-0 align-middle" id="tabel-ruas">
   <thead><tr>
-    <th>Kode</th><th>Nama ruas</th>
-    <th class="num" title="Tingkat kerusakan">C1<br><small class="fw-normal">% rusak → skor</small></th>
-    <th class="num" title="Konektivitas">C2<br><small class="fw-normal">skor</small></th>
-    <th class="num" title="Dampak sosial-ekonomi">C3<br><small class="fw-normal">LHRT / aduan → skor</small></th>
-    <th class="num" title="Urgensi keselamatan">C4<br><small class="fw-normal">skor</small></th>
-    <th class="num">Biaya<br><small class="fw-normal">juta Rp</small></th>
+    <th data-urut="kode">Kode</th><th data-urut="nama">Nama ruas</th>
+    <th class="num" data-urut="c1" title="Tingkat kerusakan">C1<br><small class="fw-normal">% rusak → skor</small></th>
+    <th class="num" data-urut="c2" title="Konektivitas">C2<br><small class="fw-normal">skor</small></th>
+    <th class="num" data-urut="c3" title="Dampak sosial-ekonomi">C3<br><small class="fw-normal">LHRT / aduan → skor</small></th>
+    <th class="num" data-urut="c4" title="Urgensi keselamatan">C4<br><small class="fw-normal">skor</small></th>
+    <th class="num" data-urut="biaya">Biaya<br><small class="fw-normal">juta Rp</small></th>
     <th>Status</th><th></th></tr></thead>
   <tbody>
   {% for r in daftar %}
-    <tr>
+    <tr data-kode="{{ r.kode }}" data-nama="{{ r.nama|lower }}"
+        data-c1="{{ r.persen_kerusakan|unlocalize }}" data-c2="{{ r.skor_c2 }}" data-c3="{{ r.skor_c3 }}" data-c4="{{ r.skor_c4 }}"
+        data-biaya="{{ r.biaya|unlocalize }}"
+        data-status="{% if r.darurat %}darurat {% endif %}{% if r.ditunda %}ditahan{% endif %}{% if not r.darurat and not r.ditunda %}normal{% endif %}">
       <td><strong>{{ r.kode }}</strong></td><td>{{ r.nama }}</td>
       <td class="num">{{ r.persen_kerusakan|floatformat:"-1" }}% → <strong>{{ r.skor_c1 }}</strong>
         <div class="small text-muted">{{ r.kategori_kerusakan.0 }}</div></td>
       <td class="num"><strong>{{ r.skor_c2 }}</strong></td>
-      <td class="num">{{ r.lhrt|floatformat:"0" }} / {{ r.aduan_per_bulan }} → <strong>{{ r.skor_c3 }}</strong></td>
+      <td class="num">{{ r.lhrt|floatformat:"0g" }} / {{ r.aduan_per_bulan }} → <strong>{{ r.skor_c3 }}</strong></td>
       <td class="num"><strong>{{ r.skor_c4 }}</strong></td>
-      <td class="num">{{ r.biaya|floatformat:"-2" }}</td>
+      <td class="num">{{ r.biaya|floatformat:"-2g" }}</td>
       <td>
         {% if r.darurat %}<span class="badge badge-aksen">Darurat</span>{% endif %}
         {% if r.ditunda %}<span class="badge badge-slate">Ditahan</span>{% endif %}
       </td>
       <td class="text-end text-nowrap">
-        <a class="btn btn-sm btn-outline-secondary" href="{% url 'ruas_ubah' r.pk %}">Ubah</a>
-        <a class="btn btn-sm btn-outline-danger" href="{% url 'ruas_hapus' r.pk %}">Hapus</a>
+        <div class="btn-group">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'ruas_ubah' r.pk %}">Ubah</a>
+          <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aksi lain untuk {{ r.kode }}"></button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item text-danger" href="{% url 'ruas_hapus' r.pk %}">Hapus ruas…</a></li>
+          </ul>
+        </div>
       </td></tr>
   {% empty %}
-    <tr><td colspan="9" class="text-center text-muted py-4">Belum ada ruas jalan.</td></tr>
+    <tr><td colspan="9" class="text-center text-muted py-4">Belum ada ruas jalan. <a href="{% url 'ruas_tambah' %}">Tambah ruas</a> atau <a href="{% url 'data_impor' %}">impor dari CSV/Excel</a>.</td></tr>
   {% endfor %}
+  {% if daftar %}<tr id="baris-kosong" class="d-none"><td colspan="9" class="text-center text-muted py-4">Tidak ada ruas yang cocok dengan pencarian/filter.</td></tr>{% endif %}
   </tbody>
 </table></div></div>
-<p class="text-muted small mt-2">Skor C1 dan C3 dihitung otomatis dari data survei sesuai rubrik. Ubah data lalu hitung ulang di menu Peringkat TOPSIS untuk what-if analysis.</p>
+<p class="text-muted small mt-2">Skor C1 dan C3 dihitung otomatis dari data survei sesuai rubrik. Klik judul kolom untuk mengurutkan. Ubah data lalu hitung ulang di menu Peringkat TOPSIS untuk what-if analysis.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const tabel = document.getElementById('tabel-ruas');
+    const cari = document.getElementById('cari-ruas');
+    if (!cari) return;
+    const filter = document.getElementById('filter-status');
+    const info = document.getElementById('info-jumlah');
+    const tbody = tabel.tBodies[0];
+    const kosong = document.getElementById('baris-kosong');
+    const baris = Array.from(tbody.querySelectorAll('tr[data-kode]'));
+
+    function saring() {
+      const q = cari.value.trim().toLowerCase(), st = filter.value;
+      let tampil = 0;
+      baris.forEach(tr => {
+        const cocok = (!q || tr.dataset.kode.toLowerCase().includes(q) || tr.dataset.nama.includes(q))
+                      && (!st || tr.dataset.status.split(' ').includes(st));
+        tr.classList.toggle('d-none', !cocok);
+        if (cocok) tampil++;
+      });
+      kosong.classList.toggle('d-none', tampil > 0);
+      info.textContent = `Menampilkan ${tampil} dari ${baris.length} ruas`;
+    }
+
+    let kolomAktif = null, naik = true;
+    tabel.querySelectorAll('th[data-urut]').forEach(th => th.addEventListener('click', () => {
+      const k = th.dataset.urut;
+      naik = kolomAktif === k ? !naik : true;
+      kolomAktif = k;
+      tabel.querySelectorAll('th[data-urut]').forEach(t => t.classList.remove('naik', 'turun'));
+      th.classList.add(naik ? 'naik' : 'turun');
+      const angka = !['kode', 'nama'].includes(k);
+      baris.sort((a, b) => {
+        const x = a.dataset[k], y = b.dataset[k];
+        const h = angka ? parseFloat(x) - parseFloat(y) : x.localeCompare(y, 'id', {numeric: true});
+        return naik ? h : -h;
+      }).forEach(tr => tbody.insertBefore(tr, kosong));
+    }));
+
+    cari.addEventListener('input', saring);
+    filter.addEventListener('change', saring);
+    saring();
+  })();
+</script>
 {% endblock %}

@@ -7,13 +7,16 @@
       {% for r in semua %}
         <div class="col-md-3 col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="id" value="{{ r.id }}" id="r{{ r.id }}" {% if r.id in dipilih_id %}checked{% endif %}>
-            <label class="form-check-label" for="r{{ r.id }}">{{ r.kode }} – {{ r.nama }}</label>
+            <input class="form-check-input pilih-ruas" type="checkbox" name="id" value="{{ r.id|stringformat:'d' }}" id="r{{ r.id|stringformat:'d' }}" {% if r.id in dipilih_id %}checked{% endif %}>
+            <label class="form-check-label" for="r{{ r.id|stringformat:'d' }}">{{ r.kode }} – {{ r.nama }}</label>
           </div>
         </div>
       {% endfor %}
     </div>
-    <button class="btn btn-primary mt-3">Bandingkan</button>
+    <div class="d-flex align-items-center gap-3 mt-3">
+      <button class="btn btn-primary" id="btn-bandingkan">Bandingkan</button>
+      <span class="small text-muted" id="info-pilih"></span>
+    </div>
   </form>
 </div></div>
 
@@ -31,6 +34,21 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+<script>
+  // Batasi pilihan agar setiap ruas punya warna grafik sendiri
+  (function () {
+    const kotak = Array.from(document.querySelectorAll('.pilih-ruas'));
+    const btn = document.getElementById('btn-bandingkan'), info = document.getElementById('info-pilih');
+    function perbarui() {
+      const n = kotak.filter(k => k.checked).length;
+      btn.disabled = n < 1;
+      info.textContent = `Dipilih ${n} ruas` + (n >= MAKS_BANDING ? ` (maksimal ${MAKS_BANDING})` : ` · maksimal ${MAKS_BANDING}`);
+      kotak.forEach(k => { k.disabled = !k.checked && n >= MAKS_BANDING; });
+    }
+    kotak.forEach(k => k.addEventListener('change', perbarui));
+    perbarui();
+  })();
+</script>
 {% if grafik %}
 <script>
   const g = JSON.parse(document.getElementById('data-grafik').textContent);

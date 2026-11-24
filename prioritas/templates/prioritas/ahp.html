@@ -1,35 +1,60 @@
 {% extends "prioritas/base.html" %}
 {% block content %}
 <h1 class="h3 mb-1">Perbandingan berpasangan AHP</h1>
-<p class="text-muted">Bandingkan tingkat kepentingan setiap pasang kriteria (skala Saaty 1–9). Bobot hanya dipakai di TOPSIS jika CR ≤ {{ batas_cr }}.</p>
+<p class="text-muted">Untuk setiap pasang kriteria, klik angka ke arah kriteria yang <strong>lebih penting</strong> (skala Saaty 1–9). Angka 1 di tengah berarti sama penting. Bobot hanya dipakai di TOPSIS jika CR ≤ {{ batas_cr }}.</p>
 
 {% if kriteria|length < 2 %}
   <div class="alert alert-aksen">Minimal dua kriteria diperlukan. Jalankan <code>python manage.py seed_demo</code> atau isi kriteria lewat admin.</div>
 {% else %}
-<div class="card mb-4"><div class="card-body">
-  <form method="post">{% csrf_token %}
-    <table class="table align-middle">
-      <thead><tr><th style="width:25%">Kriteria A</th><th>Penilaian</th><th style="width:25%">Kriteria B</th></tr></thead>
-      <tbody>
-      {% for p in pasangan %}
-        <tr>
-          <td><strong>{{ p.a.kode }}</strong> {{ p.a.nama }}</td>
-          <td><select class="form-select form-select-sm" name="p_{{ p.a.id }}_{{ p.b.id }}">
-            {% for o in p.opsi %}<option value="{{ o.val }}" {% if o.dipilih %}selected{% endif %}>{{ o.label }}</option>{% endfor %}
-          </select></td>
-          <td><strong>{{ p.b.kode }}</strong> {{ p.b.nama }}</td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    <button class="btn btn-primary">Simpan &amp; hitung bobot</button>
-  </form>
-</div></div>
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card h-100"><div class="card-body">
+      <form method="post" id="form-ahp">{% csrf_token %}
+        <div class="table-responsive skala-wrap"><table class="table align-middle mb-3">
+          <thead><tr><th style="width:18%">Kriteria A</th><th class="text-center">← A lebih penting · sama · B lebih penting →</th><th style="width:18%" class="text-end">Kriteria B</th></tr></thead>
+          <tbody>
+          {% for p in pasangan %}
+            <tr class="pasangan" data-i="{{ p.i }}" data-j="{{ p.j }}" id="pasangan-{{ p.i }}-{{ p.j }}">
+              <td><strong>{{ p.a.kode }}</strong> <span class="small">{{ p.a.nama }}</span></td>
+              <td>
+                <div class="skala" role="radiogroup" aria-label="{{ p.a.kode }} dibanding {{ p.b.kode }}">
+                  {% for o in p.opsi %}
+                    <input type="radio" class="btn-check" name="p_{{ p.a.id }}_{{ p.b.id }}" id="o_{{ p.a.id }}_{{ p.b.id }}_{{ forloop.counter }}"
+                           value="{{ o.val }}" data-label="{{ o.label }}" {% if o.dipilih %}checked{% endif %}>
+                    <label class="btn btn-outline-secondary {{ o.sisi }}" for="o_{{ p.a.id }}_{{ p.b.id }}_{{ forloop.counter }}" title="{{ o.label }}">{{ o.angka }}</label>
+                  {% endfor %}
+                </div>
+                <div class="skala-makna"></div>
+              </td>
+              <td class="text-end"><strong>{{ p.b.kode }}</strong> <span class="small">{{ p.b.nama }}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        <button class="btn btn-primary">Simpan &amp; hitung bobot</button>
+        <span class="small text-muted ms-2">Pratinjau di samping diperbarui otomatis sebelum disimpan.</span>
+      </form>
+    </div></div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card pratinjau-cr"><div class="card-body">
+      <h2 class="h6">Pratinjau (belum disimpan)</h2>
+      <div class="d-flex align-items-baseline gap-2">
+        <div class="angka-stat" id="cr-nilai">–</div><span id="cr-badge"></span>
+      </div>
+      <div class="small text-muted mb-3">Consistency Ratio, batas ≤ {{ batas_cr }}</div>
+      <div id="bobot-pratinjau" class="small"></div>
+      <div id="saran-ahp" class="alert alert-aksen small mt-3 mb-0 d-none"></div>
+    </div></div>
+  </div>
+</div>
+{{ data_ahp_js|json_script:"data-ahp" }}
 {% endif %}
 
 {% if ahp %}
 <div class="card"><div class="card-body">
-  <h2 class="h5">Hasil perhitungan bobot</h2>
+  <h2 class="h5">Hasil perhitungan bobot (tersimpan)</h2>
   {% if ahp.konsisten %}
     <div class="alert alert-success py-2">Matriks konsisten (CR = {{ ahp.cr|floatformat:4 }} ≤ {{ batas_cr }}).</div>
   {% else %}
@@ -46,5 +71,89 @@
     {% endfor %}</tbody>
   </table>
 </div></div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if kriteria|length >= 2 %}
+<script>
+  (function () {
+    const D = JSON.parse(document.getElementById('data-ahp').textContent);
+    const n = D.kode.length;
+    const SAATY = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const baris = Array.from(document.querySelectorAll('tr.pasangan'));
+
+    function nilai(teks) {
+      if (teks.includes('/')) { const [a, b] = teks.split('/'); return parseFloat(a) / parseFloat(b); }
+      return parseFloat(teks);
+    }
+    function formatSkala(v) {
+      // nilai -> teks skala Saaty terdekat, mis. 0.2 -> "1/5"
+      const besar = v >= 1 ? v : 1 / v;
+      const s = SAATY.reduce((p, c) => Math.abs(c - besar) < Math.abs(p - besar) ? c : p, 1);
+      return s === 1 ? '1' : (v >= 1 ? String(s) : '1/' + s);
+    }
+    function fmt(x, d) { return x.toLocaleString('id-ID', {minimumFractionDigits: d, maximumFractionDigits: d}); }
+
+    // Sama persis dengan services.hitung_ahp: rata-rata baris matriks ternormalisasi
+    function hitung() {
+      const m = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => 1));
+      baris.forEach(tr => {
+        const i = +tr.dataset.i, j = +tr.dataset.j;
+        const r = tr.querySelector('input:checked');
+        const v = r ? nilai(r.value) : 1;
+        m[i][j] = v; m[j][i] = 1 / v;
+        tr.querySelector('.skala-makna').textContent = r ? r.dataset.label : '';
+      });
+      const kol = Array.from({length: n}, (_, j) => m.reduce((s, b) => s + b[j], 0));
+      const w = m.map(b => b.reduce((s, v, j) => s + v / kol[j], 0) / n);
+      const aw = m.map(b => b.reduce((s, v, j) => s + v * w[j], 0));
+      const lmax = aw.reduce((s, v, i) => s + v / w[i], 0) / n;
+      const ci = n > 1 ? Math.max((lmax - n) / (n - 1), 0) : 0;
+      const ri = D.ri[String(n)] ?? 1.59;
+      const cr = ri > 0 ? ci / ri : 0;
+      return {m, w, cr};
+    }
+
+    function tampil() {
+      const {m, w, cr} = hitung();
+      const ok = cr <= D.batas + 1e-12;
+      document.getElementById('cr-nilai').textContent = fmt(cr, 4);
+      document.getElementById('cr-badge').innerHTML = ok
+        ? '<span class="badge text-bg-success">Konsisten</span>'
+        : '<span class="badge badge-aksen">Belum konsisten</span>';
+
+      const maks = Math.max(...w);
+      document.getElementById('bobot-pratinjau').innerHTML = w.map((v, i) =>
+        `<div class="mb-2"><div class="d-flex justify-content-between"><span><strong>${D.kode[i]}</strong> ${D.nama[i]}</span>` +
+        `<span class="num">${fmt(v * 100, 1)}%</span></div>` +
+        `<div class="bobot-bar" style="width:${(v / maks * 100).toFixed(1)}%"></div></div>`).join('');
+
+      // Pasangan paling tidak konsisten: penilaian yang paling jauh dari rasio bobot w_i / w_j
+      baris.forEach(tr => tr.classList.remove('pasangan-sorot'));
+      const saran = document.getElementById('saran-ahp');
+      if (ok || n < 3) { saran.classList.add('d-none'); return; }
+      let terburuk = null;
+      baris.forEach(tr => {
+        const i = +tr.dataset.i, j = +tr.dataset.j;
+        const dev = Math.abs(Math.log(m[i][j] * w[j] / w[i]));
+        if (!terburuk || dev > terburuk.dev) terburuk = {tr, i, j, dev};
+      });
+      terburuk.tr.classList.add('pasangan-sorot');
+      const sekarang = formatSkala(m[terburuk.i][terburuk.j]);
+      const usul = formatSkala(w[terburuk.i] / w[terburuk.j]);
+      const ki = D.kode[terburuk.i], kj = D.kode[terburuk.j];
+      saran.innerHTML = `Pasangan paling tidak konsisten: <strong>${ki} vs ${kj}</strong> (sekarang ${sekarang}). ` +
+        (usul !== sekarang
+          ? `Nilai yang selaras dengan penilaian lainnya sekitar <strong>${usul}</strong>. `
+          : `Tinjau juga penilaian lain yang melibatkan ${ki} atau ${kj}. `) +
+        `<a href="#${terburuk.tr.id}">Lihat baris</a>`;
+      saran.classList.remove('d-none');
+    }
+
+    document.getElementById('form-ahp').addEventListener('change', tampil);
+    tampil();
+  })();
+</script>
 {% endif %}
 {% endblock %}

@@ -8,10 +8,10 @@
   <tbody>
   {% for s in daftar %}
     <tr>
-      <td><input class="form-check-input" type="checkbox" name="id" value="{{ s.pk }}"></td>
+      <td><input class="form-check-input pilih-skenario" type="checkbox" name="id" value="{{ s.pk|stringformat:'d' }}" aria-label="Pilih {{ s.nama }}"></td>
       <td><a href="{% url 'skenario_detail' s.pk %}">{{ s.nama }}</a>{% if s.catatan %}<div class="small text-muted">{{ s.catatan }}</div>{% endif %}</td>
       <td>{{ s.dibuat|date:"d M Y H:i" }}</td>
-      <td class="num">{% if s.anggaran is not None %}{{ s.anggaran|floatformat:"-2" }}{% else %}–{% endif %}</td>
+      <td class="num">{% if s.anggaran is not None %}{{ s.anggaran|floatformat:"-2g" }}{% else %}–{% endif %}</td>
       <td class="num">{{ s.cr|floatformat:4 }}</td>
       <td>{{ s.hasil.alternatif.0.kode }} – {{ s.hasil.alternatif.0.nama }}</td>
       <td class="text-end"><a class="btn btn-sm btn-outline-danger" href="{% url 'skenario_hapus' s.pk %}">Hapus</a></td>
@@ -21,6 +21,30 @@
   {% endfor %}
   </tbody>
 </table></div></div>
-{% if daftar %}<button class="btn btn-primary mt-3">Bandingkan yang dicentang</button>{% endif %}
+{% if daftar %}
+<div class="d-flex align-items-center gap-3 mt-3">
+  <button class="btn btn-primary" id="btn-bandingkan" disabled>Bandingkan yang dicentang</button>
+  <span class="small text-muted" id="info-pilih">Centang minimal 2 skenario untuk dibandingkan.</span>
+</div>
+{% endif %}
 </form>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const kotak = Array.from(document.querySelectorAll('.pilih-skenario'));
+    const btn = document.getElementById('btn-bandingkan'), info = document.getElementById('info-pilih');
+    if (!btn) return;
+    function perbarui() {
+      const n = kotak.filter(k => k.checked).length;
+      btn.disabled = n < 2;
+      btn.textContent = n >= 2 ? `Bandingkan ${n} skenario` : 'Bandingkan yang dicentang';
+      info.textContent = n < 2 ? `Centang minimal 2 skenario (dipilih: ${n}).`
+                               : (n >= MAKS_BANDING ? `Maksimal ${MAKS_BANDING} skenario agar warna grafik tidak berulang.` : '');
+      kotak.forEach(k => { k.disabled = !k.checked && n >= MAKS_BANDING; });
+    }
+    kotak.forEach(k => k.addEventListener('change', perbarui));
+    perbarui();
+  })();
+</script>
 {% endblock %}

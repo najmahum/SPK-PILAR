@@ -1,5 +1,29 @@
 {# Konteks: hasil (dict hasil perhitungan lengkap) #}
-{% with ang=hasil.anggaran %}
+{% with ang=hasil.anggaran rk=hasil.ringkasan %}
+{% if ang.batas is not None %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
+    <h2 class="h5 mb-0">Anggaran {% if ang.tahun %}tahun {{ ang.tahun }}{% else %}tahunan{% endif %}</h2>
+    <span class="small text-muted">Batas {{ ang.batas|floatformat:"-2g" }} {{ ang.satuan }}</span>
+  </div>
+  <div class="row g-3 mb-3 text-center text-md-start">
+    <div class="col-6 col-md-3"><div class="text-muted small">Ruas masuk anggaran</div>
+      <div class="angka-stat">{{ rk.terpilih }}<span class="fs-6 text-muted fw-normal"> / {{ rk.jumlah }}</span></div></div>
+    <div class="col-6 col-md-3"><div class="text-muted small">Terpakai ({{ ang.satuan }})</div>
+      <div class="angka-stat">{{ ang.total|floatformat:"-2g" }}</div></div>
+    <div class="col-6 col-md-3"><div class="text-muted small">Sisa ({{ ang.satuan }})</div>
+      <div class="angka-stat">{{ ang.sisa|floatformat:"-2g" }}</div></div>
+    <div class="col-6 col-md-3"><div class="text-muted small">Ditunda / ditahan</div>
+      <div class="angka-stat">{{ rk.luar_anggaran }}<span class="fs-6 text-muted fw-normal"> / {{ rk.ditahan }}</span></div></div>
+  </div>
+  <div class="progress progress-anggaran" role="progressbar" aria-label="Pemakaian anggaran"
+       aria-valuenow="{{ rk.persen|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100">
+    <div class="progress-bar" style="width: {{ rk.persen|stringformat:'.1f' }}%"></div>
+  </div>
+  <div class="small text-muted mt-2">Terpakai {{ rk.persen|floatformat:1 }}% dari anggaran. Ruas darurat didanai lebih dulu, lalu menurut peringkat. Kalau anggaran tidak cukup, yang ditunda adalah ruas berperingkat paling bawah. Ruas yang ditahan karena dependensi proyek dilewati.</div>
+</div></div>
+{% endif %}
+
 <div class="row g-3 mb-3">
   <div class="col-lg-5">
     <div class="card h-100"><div class="card-body">
@@ -18,36 +42,33 @@
   </div>
   <div class="col-lg-7">
     <div class="card h-100"><div class="card-body">
-      <h2 class="h5">Skor preferensi (V<sub>i</sub>)</h2>
-      <canvas id="grafik-vi" height="150"></canvas>
+      <h2 class="h5">Skor preferensi (V<sub>i</sub>), urut dari prioritas tertinggi</h2>
+      <div style="position: relative; height: {% widthratio hasil.alternatif|length 1 26 %}px; min-height: 180px;">
+        <canvas id="grafik-vi"></canvas>
+      </div>
+      <div class="small text-muted mt-2">
+        <span class="legenda"><i style="background:#D7261E"></i>Darurat (⚠)</span>
+        <span class="legenda"><i style="background:#1B1E22"></i>Prioritas{% if ang.batas is not None %} / masuk anggaran{% endif %}</span>
+        {% if ang.batas is not None %}<span class="legenda"><i style="background:#D6D1C8"></i>Ditunda / ditahan</span>{% endif %}
+      </div>
     </div></div>
   </div>
 </div>
 
 <div class="card mb-3"><div class="card-body">
   <h2 class="h5">Peringkat prioritas penanganan</h2>
-  {% if ang.batas is not None %}
-    <div class="catatan-box mb-3 small">
-      <strong>Anggaran {% if ang.tahun %}tahun {{ ang.tahun }}{% else %}tahunan{% endif %}:</strong>
-      {{ ang.batas|floatformat:"-2" }} {{ ang.satuan }} ·
-      terpakai <strong>{{ ang.total|floatformat:"-2" }}</strong> ·
-      sisa <strong>{{ ang.sisa|floatformat:"-2" }}</strong>.
-      <div class="text-muted mt-1">Ruas darurat didanai lebih dulu, lalu menurut peringkat. Kalau anggaran tidak cukup, yang ditunda adalah ruas berperingkat paling bawah. Ruas yang ditahan karena dependensi proyek dilewati.</div>
-    </div>
-  {% endif %}
   <div class="table-responsive"><table class="table table-sm align-middle mb-0">
-    <thead><tr><th>#</th><th>Kode</th><th>Ruas</th><th class="num">V<sub>i</sub></th><th style="width:16%"></th>
+    <thead><tr><th>#</th><th>Kode</th><th>Ruas</th><th class="num">V<sub>i</sub></th>
       <th>Penanganan indikatif</th><th class="num">Biaya</th>{% if ang.batas is not None %}<th>Status</th>{% endif %}</tr></thead>
     <tbody>
     {% for a in hasil.alternatif %}
       <tr class="{% if a.darurat %}row-darurat{% endif %} {% if a.status == 'ditunda' %}row-tahan{% elif a.status == 'luar_anggaran' %}row-tunda{% endif %}">
-        <td><strong>{{ a.peringkat }}</strong></td><td>{{ a.kode }}</td>
+        <td><span class="no-bulat">{{ a.peringkat }}</span></td><td class="mono small">{{ a.kode }}</td>
         <td>{{ a.nama }}
           {% if a.darurat %}<span class="badge badge-aksen">Darurat</span>{% endif %}</td>
-        <td class="num">{{ a.vi|floatformat:4 }}</td>
-        <td><div class="vi-bar" style="width: {% widthratio a.vi 1 100 %}%"></div></td>
+        <td class="num"><span class="nilai-merah">{{ a.vi|floatformat:4 }}</span></td>
         <td class="small">{{ a.penanganan }}<div class="text-muted">{{ a.mekanisme }}</div></td>
-        <td class="num">{{ a.biaya|floatformat:"-2" }}</td>
+        <td class="num">{{ a.biaya|floatformat:"-2g" }}</td>
         {% if ang.batas is not None %}
           <td>{% if a.status == "terpilih" %}<span class="badge badge-ok">Masuk anggaran</span>
               {% elif a.status == "ditunda" %}<span class="badge badge-slate">Ditahan (dependensi)</span>
@@ -57,7 +78,7 @@
     {% endfor %}
     </tbody>
   </table></div>
-  <p class="small text-muted mt-2 mb-0">Mekanisme (swakelola / penyedia jasa) bersifat indikatif berdasarkan kategori kerusakan; keputusan akhir tetap pada DPUPR.</p>
+  <p class="small text-muted mt-2 mb-0">Biaya dalam {{ ang.satuan|default:"juta Rp" }}. Mekanisme (swakelola / penyedia jasa) bersifat indikatif berdasarkan kategori kerusakan; keputusan akhir tetap pada DPUPR.</p>
 </div></div>
 
 <div class="accordion mb-3" id="langkah">

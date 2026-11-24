@@ -8,21 +8,85 @@ from django.contrib import messages
 from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .models import Kriteria, PerbandinganKriteria, RuasJalan, Skenario
 from .scoring import BOBOT_USULAN
-from .services import (hitung_semua, muat_ahp, opsi_skala, parse_angka,
+from .services import (RI, hitung_semua, muat_ahp, opsi_skala, parse_angka,
                        parse_skala)
 
 
+# Batas jumlah item yang dibandingkan; sama dengan jumlah warna PAL di base.html
+MAKS_BANDING = 10
+
+
 # ---------------------------------------------------------------- Dashboard
+def _langkah_alur(jumlah_kriteria, jumlah_ruas, jumlah_skenario, ahp):
+    """Status tiap langkah alur kerja untuk stepper di Beranda."""
+    ahp_diisi = PerbandinganKriteria.objects.exists()
+    batas = settings.BATAS_CR
+
+    if not ahp or jumlah_kriteria < 2:
+        st_ahp, info_ahp = "belum", "Butuh minimal 2 kriteria"
+    elif not ahp_diisi:
+        st_ahp, info_ahp = "belum", "Penilaian berpasangan belum diisi"
+    elif ahp["konsisten"]:
+        st_ahp, info_ahp = "selesai", f"CR {ahp['cr']:.4f} – konsisten"
+    else:
+        st_ahp, info_ahp = "peringatan", f"CR {ahp['cr']:.4f} > {batas} – perlu diperbaiki"
+
+    langkah = [
+        {"judul": "Kriteria", "url": reverse("kriteria_list"),
+         "ket": "Rubrik skor C1–C4 dan bobot usulan DPUPR",
+         "status": "selesai" if jumlah_kriteria >= 2 else "belum",
+         "info": f"{jumlah_kriteria} kriteria", "aksi": "Lihat kriteria"},
+        {"judul": "Ruas Jalan", "url": reverse("ruas_list"),
+         "ket": "Input data survei atau impor CSV/Excel",
+         "status": "selesai" if jumlah_ruas >= 2 else "belum",
+         "info": f"{jumlah_ruas} ruas" if jumlah_ruas else "Belum ada ruas",
+         "aksi": "Isi data ruas"},
+        {"judul": "Perbandingan AHP", "url": reverse("ahp"),
+         "ket": f"Penilaian berpasangan, CR harus ≤ {batas}",
+         "status": st_ahp, "info": info_ahp,
+         "aksi": "Perbaiki penilaian AHP" if st_ahp == "peringatan" else "Isi perbandingan AHP"},
+        {"judul": "Peringkat TOPSIS", "url": reverse("topsis"),
+         "ket": "Hitung peringkat, isi anggaran, simpan skenario",
+         "status": "selesai" if jumlah_skenario else "belum",
+         "info": "Sudah ada skenario tersimpan" if jumlah_skenario else "Belum ada skenario",
+         "aksi": "Hitung peringkat"},
+        {"judul": "Riwayat Skenario", "url": reverse("skenario_list"),
+         "ket": "Bandingkan skenario (what-if)",
+         "status": "selesai" if jumlah_skenario >= 2 else "belum",
+         "info": f"{jumlah_skenario} skenario" + ("" if jumlah_skenario >= 2 else " (butuh ≥ 2)"),
+         "aksi": "Bandingkan skenario"},
+    ]
+    berikutnya = None
+    for i, l in enumerate(langkah, start=1):
+        l["no"] = i
+        if berikutnya is None and l["status"] != "selesai":
+            berikutnya = l
+            l["aktif"] = True
+    return langkah, berikutnya
+
+
 def dashboard(request):
     kriteria, ahp = muat_ahp()
+    jumlah_ruas = RuasJalan.objects.count()
+    jumlah_skenario = Skenario.objects.count()
+    langkah, berikutnya = _langkah_alur(len(kriteria), jumlah_ruas, jumlah_skenario, ahp)
+    # Pratinjau 5 prioritas teratas (tanpa anggaran); kosong bila data/AHP belum siap
+    try:
+        teratas = hitung_semua()["alternatif"][:5]
+    except ValueError:
+        teratas = []
     konteks = {
+        "teratas": teratas,
         "jumlah_kriteria": len(kriteria),
-        "jumlah_ruas": RuasJalan.objects.count(),
-        "jumlah_skenario": Skenario.objects.count(),
+        "jumlah_ruas": jumlah_ruas,
+        "jumlah_skenario": jumlah_skenario,
+        "langkah": langkah,
+        "berikutnya": berikutnya,
         "ahp": ahp,
         "batas_cr": settings.BATAS_CR,
         "skenario_terbaru": Skenario.objects.all()[:5],
@@ -32,12 +96,27 @@ def dashboard(request):
     return render(request, "prioritas/dashboard.html", konteks)
 
 
+def landing(request):
+    """Halaman pembuka beranimasi sebelum masuk ke Beranda."""
+    kriteria, ahp = muat_ahp()
+    return render(request, "prioritas/landing.html", {
+        "jumlah_kriteria": len(kriteria),
+        "jumlah_ruas": RuasJalan.objects.count(),
+        "jumlah_darurat": RuasJalan.objects.filter(darurat=True).count(),
+        "ahp": ahp,
+    })
+
+
 # ----------------------------------------------------------------- Kriteria
 class KriteriaForm(forms.ModelForm):
     class Meta:
         model = Kriteria
         fields = ["nama", "satuan", "keterangan"]
         widgets = {"keterangan": forms.Textarea(attrs={"rows": 3})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _pasang_kelas_bootstrap(self)
 
 
 def kriteria_list(request):
@@ -62,6 +141,21 @@ def kriteria_form(request, pk):
                   {"form": form, "judul": f"Ubah kriteria {obj.kode}", "kembali": "kriteria_list"})
 
 
+def _pasang_kelas_bootstrap(form):
+    """Beri kelas Bootstrap di sisi server (tanpa JavaScript, tanpa 'kedipan')."""
+    for f in form.fields.values():
+        w = f.widget
+        if isinstance(w, (forms.CheckboxInput, forms.RadioSelect)):
+            w.attrs["class"] = "form-check-input"
+        elif isinstance(w, forms.Select):
+            w.attrs["class"] = "form-select"
+        else:
+            w.attrs["class"] = "form-control"
+        if isinstance(w, forms.NumberInput):
+            w.attrs["step"] = "any"
+            w.attrs.setdefault("inputmode", "decimal")
+
+
 # --------------------------------------------------------------------- Ruas
 class RuasForm(forms.ModelForm):
     class Meta:
@@ -69,7 +163,9 @@ class RuasForm(forms.ModelForm):
         fields = ["kode", "nama", "jenis_permukaan", "persen_kerusakan",
                   "skor_konektivitas", "lhrt", "aduan_per_bulan", "lumpuh_jika_rusak",
                   "skor_keselamatan", "biaya", "darurat", "ditunda", "keterangan"]
-        widgets = {"keterangan": forms.Textarea(attrs={"rows": 2})}
+        widgets = {"keterangan": forms.Textarea(attrs={"rows": 2}),
+                   "skor_konektivitas": forms.RadioSelect,
+                   "skor_keselamatan": forms.RadioSelect}
         labels = {"ditunda": "Ditahan (dependensi proyek lain)"}
         help_texts = {
             "darurat": "Didanai lebih dulu, mis. kerusakan mendadak atau ada kegiatan penting. "
@@ -80,16 +176,7 @@ class RuasForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for f in self.fields.values():
-            w = f.widget
-            if isinstance(w, forms.CheckboxInput):
-                w.attrs["class"] = "form-check-input"
-            elif isinstance(w, forms.Select):
-                w.attrs["class"] = "form-select"
-            else:
-                w.attrs["class"] = "form-control"
-            if isinstance(w, forms.NumberInput):
-                w.attrs["step"] = "any"
+        _pasang_kelas_bootstrap(self)
 
 
 def ruas_list(request):
@@ -121,6 +208,10 @@ def ruas_bandingkan(request):
     kriteria = list(Kriteria.objects.all())
     dipilih_id = {int(i) for i in request.GET.getlist("id") if i.isdigit()}
     dipilih = [r for r in semua if r.id in dipilih_id]
+    if len(dipilih) > MAKS_BANDING:
+        messages.warning(request, f"Hanya {MAKS_BANDING} ruas pertama yang dibandingkan agar warna grafik tidak berulang.")
+        dipilih = dipilih[:MAKS_BANDING]
+        dipilih_id = {r.id for r in dipilih}
 
     grafik, tabel = None, []
     if dipilih:
@@ -319,11 +410,20 @@ def ahp_view(request):
             terdekat = min(opsi, key=lambda o: abs(o["nilai"] - nilai))
             for o in opsi:
                 o["dipilih"] = o is terdekat
-            pasangan.append({"a": a, "b": b, "opsi": opsi})
+            for o in opsi:
+                # angka yang ditampilkan di tombol skala; sisi menunjukkan arah
+                o["angka"] = o["val"].split("/")[-1]
+                o["sisi"] = "kiri" if "/" not in o["val"] and o["val"] != "1" else (
+                    "tengah" if o["val"] == "1" else "kanan")
+            pasangan.append({"a": a, "b": b, "i": i, "j": kriteria.index(b), "opsi": opsi})
 
     return render(request, "prioritas/ahp.html", {
         "kriteria": kriteria, "pasangan": pasangan, "ahp": hasil,
-        "pembanding": pembanding, "batas_cr": settings.BATAS_CR})
+        "pembanding": pembanding, "batas_cr": settings.BATAS_CR,
+        "data_ahp_js": {"kode": [k.kode for k in kriteria],
+                        "nama": [k.nama for k in kriteria],
+                        "ri": {str(k): v for k, v in RI.items()},
+                        "batas": settings.BATAS_CR}})
 
 
 # ------------------------------------------------------------------- TOPSIS
@@ -337,6 +437,27 @@ def _parse_anggaran(teks):
     return nilai
 
 
+def _lengkapi_ringkasan(hasil):
+    """Tambahkan ringkasan anggaran untuk kartu ringkasan (juga untuk snapshot lama)."""
+    if not hasil:
+        return hasil
+    alt = hasil.get("alternatif", [])
+    ang = hasil.get("anggaran") or {}
+    batas, total = ang.get("batas"), ang.get("total")
+    persen = None
+    if batas:
+        persen = min(100.0, (total or 0.0) / batas * 100)
+    hasil["ringkasan"] = {
+        "jumlah": len(alt),
+        "terpilih": sum(1 for a in alt if a.get("status") == "terpilih"),
+        "luar_anggaran": sum(1 for a in alt if a.get("status") == "luar_anggaran"),
+        "ditahan": sum(1 for a in alt if a.get("status") == "ditunda" or a.get("ditunda")),
+        "darurat": sum(1 for a in alt if a.get("darurat")),
+        "persen": persen,
+    }
+    return hasil
+
+
 def topsis_view(request):
     hasil, galat, anggaran_str, tahun = None, None, "", ""
     darurat, ditunda = [], []
@@ -344,7 +465,7 @@ def topsis_view(request):
         anggaran_str = request.POST.get("anggaran", "")
         tahun = request.POST.get("tahun", "").strip()
         try:
-            hasil = hitung_semua(_parse_anggaran(anggaran_str), tahun or None)
+            hasil = _lengkapi_ringkasan(hitung_semua(_parse_anggaran(anggaran_str), tahun or None))
             darurat = [a for a in hasil["alternatif"] if a["darurat"]]
             ditunda = [a for a in hasil["alternatif"] if a["ditunda"]]
         except ValueError as e:
@@ -377,7 +498,8 @@ def skenario_list(request):
 
 def skenario_detail(request, pk):
     s = get_object_or_404(Skenario, pk=pk)
-    return render(request, "prioritas/skenario_detail.html", {"s": s, "hasil": s.hasil})
+    return render(request, "prioritas/skenario_detail.html",
+                  {"s": s, "hasil": _lengkapi_ringkasan(s.hasil)})
 
 
 def skenario_hapus(request, pk):
@@ -409,6 +531,9 @@ def skenario_ekspor(request, pk):
 def skenario_bandingkan(request):
     ids = [int(i) for i in request.GET.getlist("id") if i.isdigit()]
     skenario = list(Skenario.objects.filter(id__in=ids).order_by("dibuat"))
+    if len(skenario) > MAKS_BANDING:
+        messages.warning(request, f"Hanya {MAKS_BANDING} skenario pertama yang dibandingkan agar warna grafik tidak berulang.")
+        skenario = skenario[:MAKS_BANDING]
     if len(skenario) < 2:
         messages.warning(request, "Pilih minimal dua skenario untuk dibandingkan.")
         return redirect("skenario_list")

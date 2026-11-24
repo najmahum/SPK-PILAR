@@ -1,61 +1,116 @@
 {% extends "prioritas/base.html" %}
-{% block content %}
-<h1 class="h3 mb-1">Prioritas Penanganan Jalan</h1>
-<p class="text-muted mt-3">Susun urutan ruas jalan yang perlu ditangani lebih dulu tahun ini, dengan bobot AHP dan peringkat TOPSIS.</p>
+{% block hero %}
+<section class="pita-judul">
+  <div class="container d-flex flex-wrap justify-content-between align-items-end gap-3">
+    <div>
+      <div class="eyebrow" style="color: var(--kuning);">Beranda</div>
+      <h1>Prioritas <span class="kuning">Perbaikan Jalan</span> Berdasarkan Kriteria</h1>
+      <p>Susun urutan ruas jalan yang perlu ditangani lebih dulu tahun ini, dengan bobot AHP dan peringkat TOPSIS.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-accent btn-lg" href="{% url 'topsis' %}">Hitung peringkat</a>
+      <a class="btn btn-outline-light btn-lg" href="{% url 'ruas_tambah' %}">+ Ruas baru</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
 
-{% if ruas_darurat %}
-<div class="alert alert-aksen d-flex justify-content-between align-items-center">
-  <div><strong>{{ ruas_darurat|length }} ruas berstatus darurat / agenda khusus:</strong>
-    {% for r in ruas_darurat %}{{ r.kode }} ({{ r.nama }}){% if not forloop.last %}, {% endif %}{% endfor %}.
-    Didanai lebih dulu dalam seleksi anggaran.</div>
-  <a class="btn btn-accent btn-sm ms-3" href="{% url 'topsis' %}">Hitung peringkat</a>
-</div>
-{% endif %}
-{% if ruas_ditunda %}
-<div class="catatan-box mb-3 small">
-  <strong>{{ ruas_ditunda|length }} ruas ditahan (dependensi proyek lain):</strong>
-  {% for r in ruas_ditunda %}{{ r.kode }}{% if not forloop.last %}, {% endif %}{% endfor %}.
-  Tetap diperingkat, tapi tidak masuk anggaran tahun ini.
+{% block content %}
+<div class="card mb-4" id="alur"><div class="card-body p-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="h4 mb-0">Rute kerja</h2>
+    {% if berikutnya %}
+      <a class="btn btn-primary btn-sm" href="{{ berikutnya.url }}">Langkah berikutnya: {{ berikutnya.aksi }} →</a>
+    {% else %}
+      <span class="badge badge-ok">Semua langkah selesai</span>
+    {% endif %}
+  </div>
+  <ol class="rute">
+    {% for l in langkah %}
+    <li class="step-{{ l.status }}{% if l.aktif %} step-aktif{% endif %}">
+      <a href="{{ l.url }}" class="patok text-decoration-none" aria-label="Langkah {{ l.no }}: {{ l.judul }}">{% if l.status == 'selesai' %}✓{% elif l.status == 'peringatan' %}!{% else %}{{ l.no }}{% endif %}</a>
+      <div>
+        <a class="judul text-decoration-none" href="{{ l.url }}">{{ l.judul }}</a>
+        <div class="info">{{ l.info }}</div>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</div></div>
+
+{% if ruas_darurat or ruas_ditunda %}
+<div class="alert alert-aksen mb-4">
+  {% if ruas_darurat %}
+    <div><strong>{{ ruas_darurat|length }} ruas darurat / agenda khusus:</strong>
+      {% for r in ruas_darurat %}{{ r.kode }} ({{ r.nama }}){% if not forloop.last %}, {% endif %}{% endfor %}. Didanai lebih dulu dalam seleksi anggaran.</div>
+  {% endif %}
+  {% if ruas_ditunda %}
+    <div class="{% if ruas_darurat %}mt-1{% endif %}"><strong>{{ ruas_ditunda|length }} ruas ditahan</strong> (dependensi proyek lain):
+      {% for r in ruas_ditunda %}{{ r.kode }}{% if not forloop.last %}, {% endif %}{% endfor %}. Tetap diperingkat, tapi tidak masuk anggaran tahun ini.</div>
+  {% endif %}
 </div>
 {% endif %}
 
 <div class="row g-3 mb-4">
-  <div class="col-md-3"><div class="card"><div class="card-body">
-    <div class="text-muted small">Kriteria</div><div class="display-6">{{ jumlah_kriteria }}</div></div></div></div>
-  <div class="col-md-3"><div class="card"><div class="card-body">
-    <div class="text-muted small">Ruas jalan</div><div class="display-6">{{ jumlah_ruas }}</div></div></div></div>
-  <div class="col-md-3"><div class="card"><div class="card-body">
-    <div class="text-muted small">Skenario tersimpan</div><div class="display-6">{{ jumlah_skenario }}</div></div></div></div>
-  <div class="col-md-3"><div class="card"><div class="card-body">
-    <div class="text-muted small">Consistency Ratio (CR)</div>
-    {% if ahp %}
-      <div class="display-6">{{ ahp.cr|floatformat:4 }}</div>
-      {% if ahp.konsisten %}<span class="badge text-bg-success">Konsisten (≤ {{ batas_cr }})</span>
-      {% else %}<span class="badge badge-aksen">Belum konsisten (&gt; {{ batas_cr }})</span>{% endif %}
-    {% else %}<div class="display-6">–</div>{% endif %}
-  </div></div></div>
+  <div class="col-6 col-lg-3"><a class="kartu-link" href="{% url 'kriteria_list' %}"><div class="card"><div class="card-body">
+    <div class="label-stat">Kriteria</div><div class="angka-stat mt-1">{{ jumlah_kriteria }}</div>
+    <div class="small text-muted mt-1">C1–C4 dengan rubrik skor</div></div></div></a></div>
+  <div class="col-6 col-lg-3"><a class="kartu-link" href="{% url 'ruas_list' %}"><div class="card"><div class="card-body">
+    <div class="label-stat">Ruas jalan</div><div class="angka-stat mt-1">{{ jumlah_ruas }}</div>
+    <div class="small text-muted mt-1">{{ ruas_darurat|length }} darurat · {{ ruas_ditunda|length }} ditahan</div></div></div></a></div>
+  <div class="col-6 col-lg-3"><a class="kartu-link" href="{% url 'ahp' %}"><div class="card card-sorot"><div class="card-body">
+    <div class="label-stat">Consistency ratio</div>
+    <div class="angka-stat mt-1">{% if ahp %}{{ ahp.cr|floatformat:4 }}{% else %}–{% endif %}</div>
+    {% if ahp and ahp.konsisten %}<span class="badge badge-ok mt-1">Konsisten (≤ {{ batas_cr }})</span>
+    {% elif ahp %}<span class="badge badge-aksen mt-1">Belum konsisten</span>{% endif %}
+  </div></div></a></div>
+  <div class="col-6 col-lg-3"><a class="kartu-link" href="{% url 'skenario_list' %}"><div class="card"><div class="card-body">
+    <div class="label-stat">Skenario</div><div class="angka-stat mt-1">{{ jumlah_skenario }}</div>
+    <div class="small text-muted mt-1">{% if jumlah_skenario >= 2 %}Siap dibandingkan{% else %}Butuh ≥ 2 untuk dibandingkan{% endif %}</div></div></div></a></div>
 </div>
 
-<div class="card mb-4"><div class="card-body">
-  <h2 class="h5">Alur penggunaan</h2>
-  <ol class="mb-0">
-    <li><a href="{% url 'kriteria_list' %}">Kriteria</a> – lihat rubrik skor C1–C4 dan bobot usulan DPUPR.</li>
-    <li><a href="{% url 'ruas_list' %}">Ruas Jalan</a> – input data survei (skor dihitung otomatis) atau <a href="{% url 'data_impor' %}">impor CSV/Excel</a>.</li>
-    <li><a href="{% url 'ahp' %}">Perbandingan AHP</a> – isi perbandingan berpasangan, pastikan CR ≤ {{ batas_cr }}.</li>
-    <li><a href="{% url 'topsis' %}">Peringkat TOPSIS</a> – hitung peringkat, isi batas anggaran, simpan sebagai skenario.</li>
-    <li><a href="{% url 'skenario_list' %}">Riwayat Skenario</a> – bandingkan hasil antarbobot atau antarperiode (what-if).</li>
-  </ol>
-</div></div>
-
-<div class="card"><div class="card-body">
-  <h2 class="h5">Skenario terbaru</h2>
-  {% for s in skenario_terbaru %}
-    <div class="d-flex justify-content-between border-bottom py-2">
-      <a href="{% url 'skenario_detail' s.pk %}">{{ s.nama }}</a>
-      <span class="text-muted small">{{ s.dibuat|date:"d M Y H:i" }}</span>
-    </div>
-  {% empty %}
-    <p class="text-muted mb-0">Belum ada skenario. Hitung peringkat lalu simpan.</p>
-  {% endfor %}
-</div></div>
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card h-100"><div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-baseline mb-2">
+        <h2 class="h4 mb-0">Prioritas teratas</h2>
+        <span class="small text-muted">tanpa batas anggaran · skor V<sub>i</sub></span>
+      </div>
+      {% if teratas %}
+        <ol class="daftar-rank">
+          {% for a in teratas %}
+          <li class="{% if a.darurat %}row-darurat{% endif %}">
+            <span class="no-bulat">{{ a.peringkat }}</span>
+            <div class="isi">
+              <div class="nama text-truncate">{{ a.nama }}{% if a.darurat %} <span class="badge badge-aksen">Darurat</span>{% endif %}</div>
+              <div class="sub"><span class="mono">{{ a.kode }}</span> · {{ a.penanganan }}</div>
+            </div>
+            <span class="nilai-merah">{{ a.vi|floatformat:4 }}</span>
+          </li>
+          {% endfor %}
+        </ol>
+        <a class="btn btn-outline-secondary btn-sm mt-3" href="{% url 'topsis' %}">Peringkat lengkap dengan anggaran →</a>
+      {% else %}
+        <p class="text-muted mb-0">Peringkat muncul di sini setelah ada minimal 2 kriteria, 2 ruas, dan matriks AHP yang konsisten.
+          {% if berikutnya %}<a href="{{ berikutnya.url }}">{{ berikutnya.aksi }} →</a>{% endif %}</p>
+      {% endif %}
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card h-100"><div class="card-body p-4">
+      <h2 class="h4">Skenario terbaru</h2>
+      {% for s in skenario_terbaru %}
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2 gap-2">
+          <div>
+            <a class="fw-semibold" href="{% url 'skenario_detail' s.pk %}">{{ s.nama }}</a>
+            <div class="small text-muted">{{ s.dibuat|date:"d M Y H:i" }}</div>
+          </div>
+          <span class="small text-muted text-nowrap">CR <span class="mono">{{ s.cr|floatformat:3 }}</span></span>
+        </div>
+      {% empty %}
+        <p class="text-muted mb-0">Belum ada skenario. Hitung peringkat di menu <a href="{% url 'topsis' %}">Peringkat TOPSIS</a> lalu simpan.</p>
+      {% endfor %}
+    </div></div>
+  </div>
+</div>
 {% endblock %}

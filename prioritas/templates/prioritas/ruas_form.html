@@ -3,18 +3,25 @@
 <h1 class="h3 mb-3">{% if obj %}Ubah ruas jalan{% else %}Tambah ruas jalan{% endif %}</h1>
 <div class="card"><div class="card-body">
 <form method="post">{% csrf_token %}
-  {{ form.non_field_errors }}
+  {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
   <div class="row">
   {% for f in form %}
-    {% if f.name == 'jenis_permukaan' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C1 – Tingkat kerusakan</h2><div class="row">{% endif %}
+    {% if f.name == 'jenis_permukaan' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C1 – Tingkat kerusakan <span class="pratinjau-skor badge badge-ok" id="pratinjau-c1"></span></h2><div class="row">{% endif %}
     {% if f.name == 'skor_konektivitas' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C2 – Konektivitas & fungsi jalan</h2><div class="row">{% endif %}
-    {% if f.name == 'lhrt' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C3 – Dampak sosial-ekonomi & aduan publik <span class="text-muted fw-normal">(skor diambil dari yang tertinggi)</span></h2><div class="row">{% endif %}
+    {% if f.name == 'lhrt' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C3 – Dampak sosial-ekonomi & aduan publik <span class="text-muted fw-normal">(skor diambil dari yang tertinggi)</span> <span class="pratinjau-skor badge badge-ok" id="pratinjau-c3"></span></h2><div class="row">{% endif %}
     {% if f.name == 'skor_keselamatan' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">C4 – Urgensi keselamatan</h2><div class="row">{% endif %}
     {% if f.name == 'biaya' %}</div><h2 class="h6 mt-3 pb-1 border-bottom">Anggaran dan pertimbangan khusus</h2><div class="row">{% endif %}
     {% if f.name == 'keterangan' %}</div><div class="row mt-3">{% endif %}
 
     <div class="{% if f.name == 'keterangan' or f.name == 'skor_konektivitas' or f.name == 'skor_keselamatan' %}col-12{% elif f.name == 'nama' %}col-md-9{% elif f.name == 'kode' %}col-md-3{% else %}col-md-6{% endif %} mb-3">
-      {% if f.field.widget.input_type == 'checkbox' %}
+      {% if f.name == 'skor_konektivitas' or f.name == 'skor_keselamatan' %}
+        <div class="form-label">{{ f.label }}</div>
+        <div class="pilihan-skor" role="radiogroup" aria-label="{{ f.label }}">
+          {% for o in f %}
+            <label class="opsi-skor" for="{{ o.id_for_label }}">{{ o.tag }}<span class="opsi-angka">{{ o.data.value }}</span><span class="small">{{ o.choice_label|slice:"4:" }}</span></label>
+          {% endfor %}
+        </div>
+      {% elif f.field.widget.input_type == 'checkbox' %}
         <div class="form-check mt-md-4">{{ f }}<label class="form-check-label" for="{{ f.id_for_label }}">{{ f.label }}</label></div>
       {% else %}
         <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
@@ -24,9 +31,49 @@
     </div>
   {% endfor %}
   </div>
-  <p class="text-muted small">Desimal ditulis dengan titik (mis. 12.5). Skor C1 dan C3 dihitung otomatis saat disimpan.</p>
+  <p class="text-muted small">Desimal ditulis dengan titik (mis. 12.5). Pratinjau skor C1 dan C3 di judul bagian diperbarui saat Anda mengetik; nilai final dihitung ulang saat disimpan.</p>
   <button class="btn btn-primary">Simpan</button>
   <a class="btn btn-link" href="{% url 'ruas_list' %}">Batal</a>
 </form>
 </div></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Salinan rubrik di prioritas/scoring.py — jika ambang di sana diubah, ubah juga di sini.
+  (function () {
+    const $ = id => document.getElementById(id);
+    const KATEGORI = {1: 'Baik', 2: 'Ringan', 3: 'Sedang', 4: 'Berat'};
+    const angka = el => { const v = parseFloat((el && el.value || '').replace(',', '.')); return isNaN(v) ? null : v; };
+
+    function skorKerusakan(persen, berpenutup) {
+      const batas = berpenutup ? [6, 11, 15] : [11, 16, 23];
+      return 1 + batas.filter(b => persen >= b).length;
+    }
+    function skorLhrt(l) { return l > 12000 ? 5 : l >= 3000 ? 4 : l >= 1000 ? 3 : l >= 500 ? 2 : 1; }
+    function skorAduan(a) { return a > 25 ? 5 : a >= 11 ? 4 : a >= 4 ? 3 : a >= 1 ? 2 : 1; }
+
+    function perbarui() {
+      const persen = angka($('id_persen_kerusakan'));
+      const c1 = $('pratinjau-c1');
+      if (persen === null) { c1.textContent = ''; }
+      else {
+        const s = skorKerusakan(persen, $('id_jenis_permukaan').value === 'berpenutup');
+        c1.textContent = `Skor ${s} · ${KATEGORI[s]}`;
+      }
+      const lhrt = angka($('id_lhrt')), aduan = angka($('id_aduan_per_bulan'));
+      const lumpuh = $('id_lumpuh_jika_rusak').checked;
+      const c3 = $('pratinjau-c3');
+      if (lumpuh) c3.textContent = 'Skor 5 · lumpuh jika rusak';
+      else if (lhrt === null && aduan === null) c3.textContent = '';
+      else {
+        const sl = skorLhrt(lhrt || 0), sa = skorAduan(aduan || 0);
+        c3.textContent = `Skor ${Math.max(sl, sa)} · LHRT ${sl}, aduan ${sa}`;
+      }
+    }
+    ['id_persen_kerusakan', 'id_jenis_permukaan', 'id_lhrt', 'id_aduan_per_bulan', 'id_lumpuh_jika_rusak']
+      .forEach(id => { const el = $(id); if (el) { el.addEventListener('input', perbarui); el.addEventListener('change', perbarui); } });
+    perbarui();
+  })();
+</script>
 {% endblock %}

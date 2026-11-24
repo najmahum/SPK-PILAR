@@ -7,4 +7,24 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
+venv/
+ENV/
+
+# Django / local data
+db.sqlite3
+*.sqlite3
+/media/
+staticfiles/
+*.log
+local_settings.py
+
+# Environment / secrets
+.env
+.env.*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

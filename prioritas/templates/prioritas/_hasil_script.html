@@ -1,12 +1,19 @@
 <script>
   (function () {
     const g = JSON.parse(document.getElementById('data-vi').textContent);
-    const peta = {darurat: '#FF5722', normal: '#1E293B', tidak: '#CBD5E1'};
-    const warna = (g.kelas || []).map(k => peta[k] || '#1E293B');
+    const peta = {darurat: '#D7261E', normal: '#1B1E22', tidak: '#D6D1C8'};
+    const kelas = g.kelas || [];
+    const warna = kelas.map(k => peta[k] || '#1B1E22');
+    const label = g.label.map((l, i) => kelas[i] === 'darurat' ? l + ' ⚠' : l);
     new Chart(document.getElementById('grafik-vi'), {
       type: 'bar',
-      data: {labels: g.label, datasets: [{label: 'Vi', data: g.vi, backgroundColor: warna, borderRadius: 4}]},
-      options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true, max: 1}}}
+      data: {labels: label, datasets: [{label: 'Vi', data: g.vi, backgroundColor: warna, borderRadius: 4, barThickness: 14}]},
+      options: {
+        indexAxis: 'y', maintainAspectRatio: false,
+        plugins: {legend: {display: false},
+                  tooltip: {callbacks: {label: c => 'Vi = ' + c.parsed.x.toFixed(4)}}},
+        scales: {x: {beginAtZero: true, max: 1}, y: {grid: {display: false}}}
+      }
     });
   })();
 </script>
